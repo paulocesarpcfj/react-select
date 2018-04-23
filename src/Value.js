@@ -70,11 +70,11 @@ class Value extends React.Component {
 	renderLabel () {
 		let className = 'Select-value-label';
 		return this.props.onClick || this.props.value.href ? (
-			<a className={className} href={this.props.value.href} target={this.props.value.target} onMouseDown={this.handleMouseDown} onTouchEnd={this.handleMouseDown}>
+			<a className={className} href={this.props.value.href} target={this.props.value.target} title={this.props.children} onMouseDown={this.handleMouseDown} onTouchEnd={this.handleMouseDown}>
 				{this.props.children}
 			</a>
 		) : (
-			<span className={className} role="option" aria-selected="true" id={this.props.id}>
+			<span className={className} role="option" aria-selected="true" id={this.props.id} title={this.props.children}>
 				{this.props.children}
 			</span>
 		);
