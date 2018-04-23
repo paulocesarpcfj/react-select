@@ -61,6 +61,7 @@ export default class Async extends Component {
 
 		this._onInputChange = this._onInputChange.bind(this);
 		this._onMenuScrollToBottom = this._onMenuScrollToBottom.bind(this);
+		this._onShowMore = this._onShowMore.bind(this);
 	}
 
 	componentDidMount () {
@@ -213,6 +214,12 @@ export default class Async extends Component {
 		this.loadOptions(inputValue, this.state.page + 1);
 	}
 
+	_onShowMore (inputValue) {
+		if (!this.props.pagination || this.state.isLoading) return;
+
+		this.loadOptions(inputValue, this.state.page + 1);
+	}
+
 	render () {
 		const { children, loadingPlaceholder, placeholder } = this.props;
 		const { isLoading, isLoadingPage, options } = this.state;
@@ -235,7 +242,7 @@ export default class Async extends Component {
 			...props,
 			isLoading,
 			onInputChange: this._onInputChange,
-			onMenuScrollToBottom: this._onMenuScrollToBottom,
+			onShowMore: this._onShowMore,
 		});
 	}
 }

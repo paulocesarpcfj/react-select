@@ -98,6 +98,7 @@ class Select extends React.Component {
 			'onOptionRef',
 			'removeValue',
 			'selectValue',
+			'handleShowMore',
 		].forEach((fn) => this[fn] = this[fn].bind(this));
 
 		this.state = {
@@ -565,6 +566,12 @@ class Select extends React.Component {
 		if (target.scrollHeight > target.offsetHeight && (target.scrollHeight - target.offsetHeight - target.scrollTop) <= 0) {
 			this.props.onMenuScrollToBottom(this.state.inputValue);
 		}
+	}
+
+	handleShowMore () {
+		if (!this.props.onShowMore) return;
+
+		return this.props.onShowMore(this.state.inputValue);
 	}
 
 	getOptionLabel (op) {
@@ -1106,13 +1113,15 @@ class Select extends React.Component {
 					className="Select-menu"
 					id={`${this._instancePrefix}-list`}
 					onMouseDown={this.handleMouseDownOnMenu}
-					onScroll={this.handleMenuScroll}
 					ref={ref => this.menu = ref}
 					role="listbox"
 					style={this.props.menuStyle}
 					tabIndex={-1}
 				>
 					{menu}
+					{menu && menu.length >= this.props.pageSize &&
+						<div onClick={this.handleShowMore}>{this.props.showMoreText}</div>
+					}
 				</div>
 			</div>
 		);
@@ -1189,6 +1198,7 @@ class Select extends React.Component {
 }
 
 Select.propTypes = {
+	showMoreText: PropTypes.string, 	  // Defines the placeholder to the Show More Button
 	'aria-describedby': PropTypes.string, // html id(s) of element(s) that should be used to describe this input (for assistive tech)
 	'aria-label': PropTypes.string,       // aria label (for assistive tech)
 	'aria-labelledby': PropTypes.string,  // html id of an element that should be used as the label (for assistive tech)
@@ -1311,6 +1321,7 @@ Select.defaultProps = {
  	trimFilter: true,
 	valueComponent: Value,
 	valueKey: 'value',
+	showMoreText: 'Show More',
 };
 
 export default Select;
