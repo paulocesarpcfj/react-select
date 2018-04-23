@@ -607,11 +607,11 @@ var Value = function (_React$Component) {
 			var className = 'Select-value-label';
 			return this.props.onClick || this.props.value.href ? React__default.createElement(
 				'a',
-				{ className: className, href: this.props.value.href, target: this.props.value.target, onMouseDown: this.handleMouseDown, onTouchEnd: this.handleMouseDown },
+				{ className: className, href: this.props.value.href, target: this.props.value.target, title: this.props.children, onMouseDown: this.handleMouseDown, onTouchEnd: this.handleMouseDown },
 				this.props.children
 			) : React__default.createElement(
 				'span',
-				{ className: className, role: 'option', 'aria-selected': 'true', id: this.props.id },
+				{ className: className, role: 'option', 'aria-selected': 'true', id: this.props.id, title: this.props.children },
 				this.props.children
 			);
 		}
@@ -1218,7 +1218,7 @@ var Select$1 = function (_React$Component) {
 			var target = event.target;
 
 			if (target.scrollHeight > target.offsetHeight && target.scrollHeight - target.offsetHeight - target.scrollTop <= 0) {
-				this.props.onMenuScrollToBottom();
+				this.props.onMenuScrollToBottom(this.state.inputValue);
 			}
 		}
 	}, {
@@ -2036,32 +2036,28 @@ Select$1.defaultProps = {
 };
 
 var propTypes = {
-	autoload: PropTypes.bool.isRequired, // automatically call the `loadOptions` prop on-mount; defaults to true
-	cache: PropTypes.any, // object to use to cache results; set to null/false to disable caching
-	children: PropTypes.func.isRequired, // Child function responsible for creating the inner Select component; (props: Object): PropTypes.element
-	ignoreAccents: PropTypes.bool, // strip diacritics when filtering; defaults to true
-	ignoreCase: PropTypes.bool, // perform case-insensitive filtering; defaults to true
-	loadOptions: PropTypes.func.isRequired, // callback to load options asynchronously; (inputValue: string, callback: Function): ?Promise
-	loadingPlaceholder: PropTypes.oneOfType([// replaces the placeholder while options are loading
-	PropTypes.string, PropTypes.node]),
-	multi: PropTypes.bool, // multi-value input
-	noResultsText: PropTypes.oneOfType([// field noResultsText, displayed when no options come back from the server
-	PropTypes.string, PropTypes.node]),
-	onChange: PropTypes.func, // onChange handler: function (newValue) {}
-	onInputChange: PropTypes.func, // optional for keeping track of what is being typed
-	options: PropTypes.array.isRequired, // array of options
-	placeholder: PropTypes.oneOfType([// field placeholder, displayed when there's no value (shared with Select)
-	PropTypes.string, PropTypes.node]),
-	searchPromptText: PropTypes.oneOfType([// label to prompt for search input
-	PropTypes.string, PropTypes.node]),
-	value: PropTypes.any // initial field value
+	autoload: React__default.PropTypes.bool.isRequired, // automatically call the `loadOptions` prop on-mount; defaults to true
+	cache: React__default.PropTypes.any, // object to use to cache results; set to null/false to disable caching
+	children: React__default.PropTypes.func.isRequired, // Child function responsible for creating the inner Select component; (props: Object): PropTypes.element
+	ignoreAccents: React__default.PropTypes.bool, // strip diacritics when filtering; defaults to true
+	ignoreCase: React__default.PropTypes.bool, // perform case-insensitive filtering; defaults to true
+	loadingPlaceholder: React__default.PropTypes.oneOfType([// replaces the placeholder while options are loading
+	React__default.PropTypes.string, React__default.PropTypes.node]),
+	loadOptions: React__default.PropTypes.func.isRequired, // callback to load options asynchronously; (inputValue: string, callback: Function): ?Promise
+	options: React.PropTypes.array.isRequired, // array of options
+	pagination: React.PropTypes.bool, // automatically load more options when the option list is scrolled to the end; default to false
+	placeholder: React__default.PropTypes.oneOfType([// field placeholder, displayed when there's no value (shared with Select)
+	React__default.PropTypes.string, React__default.PropTypes.node]),
+	noResultsText: React__default.PropTypes.oneOfType([// field noResultsText, displayed when no options come back from the server
+	React__default.PropTypes.string, React__default.PropTypes.node]),
+	onChange: React__default.PropTypes.func, // onChange handler: function (newValue) {}
+	searchPromptText: React__default.PropTypes.oneOfType([// label to prompt for search input
+	React__default.PropTypes.string, React__default.PropTypes.node]),
+	onInputChange: React__default.PropTypes.func, // optional for keeping track of what is being typed
+	value: React__default.PropTypes.any // initial field value
 };
 
 var defaultCache = {};
-
-var defaultChildren = function defaultChildren(props) {
-	return React__default.createElement(Select$1, props);
-};
 
 var defaultProps = {
 	autoload: true,
@@ -2071,6 +2067,7 @@ var defaultProps = {
 	ignoreCase: true,
 	loadingPlaceholder: 'Loading...',
 	options: [],
+	pagination: false,
 	searchPromptText: 'Type to search'
 };
 
@@ -2085,12 +2082,14 @@ var Async = function (_Component) {
 		_this._cache = props.cache === defaultCache ? {} : props.cache;
 
 		_this.state = {
-			inputValue: '',
 			isLoading: false,
+			isLoadingPage: false,
+			page: 1,
 			options: props.options
 		};
 
-		_this.onInputChange = _this.onInputChange.bind(_this);
+		_this._onInputChange = _this._onInputChange.bind(_this);
+		_this._onMenuScrollToBottom = _this._onMenuScrollToBottom.bind(_this);
 		return _this;
 	}
 
@@ -2105,51 +2104,65 @@ var Async = function (_Component) {
 			}
 		}
 	}, {
-		key: 'componentWillReceiveProps',
-		value: function componentWillReceiveProps(nextProps) {
-			if (nextProps.options !== this.props.options) {
-				this.setState({
-					options: nextProps.options
-				});
-			}
+		key: 'componentWillUpdate',
+		value: function componentWillUpdate(nextProps, nextState) {
+			var _this2 = this;
+
+			var propertiesToSync = ['options'];
+			propertiesToSync.forEach(function (prop) {
+				if (_this2.props[prop] !== nextProps[prop]) {
+					_this2.setState(defineProperty({}, prop, nextProps[prop]));
+				}
+			});
 		}
 	}, {
-		key: 'componentWillUnmount',
-		value: function componentWillUnmount() {
-			this._callback = null;
+		key: 'clearOptions',
+		value: function clearOptions() {
+			this.setState({ options: [] });
 		}
 	}, {
 		key: 'loadOptions',
 		value: function loadOptions(inputValue) {
-			var _this2 = this;
+			var _this3 = this;
 
-			var loadOptions = this.props.loadOptions;
+			var page = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1;
+			var _props = this.props,
+			    loadOptions = _props.loadOptions,
+			    pagination = _props.pagination;
 
 			var cache = this._cache;
 
-			if (cache && Object.prototype.hasOwnProperty.call(cache, inputValue)) {
-				this._callback = null;
-
+			if (cache && cache.hasOwnProperty(inputValue)) {
 				this.setState({
-					isLoading: false,
-					options: cache[inputValue]
+					options: cache[inputValue].options,
+					page: cache[inputValue].page
 				});
 
-				return;
+				if (!pagination || pagination && (cache[inputValue].page >= page || cache[inputValue].hasReachedLastPage)) {
+					return;
+				}
 			}
 
 			var callback = function callback(error, data) {
-				var options = data && data.options || [];
+				if (callback === _this3._callback) {
+					_this3._callback = null;
 
-				if (cache) {
-					cache[inputValue] = options;
-				}
+					var options = data && data.options || [];
 
-				if (callback === _this2._callback) {
-					_this2._callback = null;
+					var hasReachedLastPage = pagination && options.length === 0;
 
-					_this2.setState({
+					if (page > 1) {
+						options = _this3.state.options.concat(options);
+					}
+
+					if (cache) {
+						cache[inputValue] = { page: page, options: options, hasReachedLastPage: hasReachedLastPage };
+					}
+
+					_this3.setState({
 						isLoading: false,
+						isLoadingPage: false,
+						page: page,
 						options: options
 					});
 				}
@@ -2158,7 +2171,14 @@ var Async = function (_Component) {
 			// Ignore all but the most recent request
 			this._callback = callback;
 
-			var promise = loadOptions(inputValue, callback);
+			var promise = void 0;
+
+			if (pagination) {
+				promise = loadOptions(inputValue, page, callback);
+			} else {
+				promise = loadOptions(inputValue, callback);
+			}
+
 			if (promise) {
 				promise.then(function (data) {
 					return callback(null, data);
@@ -2169,55 +2189,55 @@ var Async = function (_Component) {
 
 			if (this._callback && !this.state.isLoading) {
 				this.setState({
-					isLoading: true
+					isLoading: true,
+					isLoadingPage: page > this.state.page
 				});
 			}
+
+			return inputValue;
 		}
 	}, {
-		key: 'onInputChange',
-		value: function onInputChange(inputValue) {
-			var _props = this.props,
-			    ignoreAccents = _props.ignoreAccents,
-			    ignoreCase = _props.ignoreCase,
-			    onInputChange = _props.onInputChange;
+		key: '_onInputChange',
+		value: function _onInputChange(inputValue) {
+			var _props2 = this.props,
+			    ignoreAccents = _props2.ignoreAccents,
+			    ignoreCase = _props2.ignoreCase,
+			    onInputChange = _props2.onInputChange;
 
-			var newInputValue = inputValue;
-
-			if (onInputChange) {
-				var value = onInputChange(newInputValue);
-				// Note: != used deliberately here to catch undefined and null
-				if (value != null && (typeof value === 'undefined' ? 'undefined' : _typeof(value)) !== 'object') {
-					newInputValue = '' + value;
-				}
-			}
-
-			var transformedInputValue = newInputValue;
 
 			if (ignoreAccents) {
-				transformedInputValue = stripDiacritics(transformedInputValue);
+				inputValue = stripDiacritics(inputValue);
 			}
 
 			if (ignoreCase) {
-				transformedInputValue = transformedInputValue.toLowerCase();
+				inputValue = inputValue.toLowerCase();
 			}
 
-			this.setState({ inputValue: newInputValue });
-			this.loadOptions(transformedInputValue);
+			if (onInputChange) {
+				onInputChange(inputValue);
+			}
 
-			// Return new input value, but without applying toLowerCase() to avoid modifying the user's view case of the input while typing.
-			return newInputValue;
+			return this.loadOptions(inputValue);
+		}
+	}, {
+		key: 'inputValue',
+		value: function inputValue() {
+			if (this.select) {
+				return this.select.state.inputValue;
+			}
+			return '';
 		}
 	}, {
 		key: 'noResultsText',
 		value: function noResultsText() {
-			var _props2 = this.props,
-			    loadingPlaceholder = _props2.loadingPlaceholder,
-			    noResultsText = _props2.noResultsText,
-			    searchPromptText = _props2.searchPromptText;
-			var _state = this.state,
-			    inputValue = _state.inputValue,
-			    isLoading = _state.isLoading;
+			var _props3 = this.props,
+			    loadingPlaceholder = _props3.loadingPlaceholder,
+			    noResultsText = _props3.noResultsText,
+			    searchPromptText = _props3.searchPromptText;
+			var isLoading = this.state.isLoading;
 
+
+			var inputValue = this.inputValue();
 
 			if (isLoading) {
 				return loadingPlaceholder;
@@ -2233,31 +2253,46 @@ var Async = function (_Component) {
 			this.select.focus();
 		}
 	}, {
+		key: '_onMenuScrollToBottom',
+		value: function _onMenuScrollToBottom(inputValue) {
+			if (!this.props.pagination || this.state.isLoading) return;
+
+			this.loadOptions(inputValue, this.state.page + 1);
+		}
+	}, {
 		key: 'render',
 		value: function render() {
-			var _this3 = this;
+			var _this4 = this;
 
-			var _props3 = this.props,
-			    children = _props3.children,
-			    loadingPlaceholder = _props3.loadingPlaceholder,
-			    placeholder = _props3.placeholder;
-			var _state2 = this.state,
-			    isLoading = _state2.isLoading,
-			    options = _state2.options;
+			var _props4 = this.props,
+			    children = _props4.children,
+			    loadingPlaceholder = _props4.loadingPlaceholder,
+			    placeholder = _props4.placeholder;
+			var _state = this.state,
+			    isLoading = _state.isLoading,
+			    isLoadingPage = _state.isLoadingPage,
+			    options = _state.options;
 
 
 			var props = {
 				noResultsText: this.noResultsText(),
 				placeholder: isLoading ? loadingPlaceholder : placeholder,
-				options: isLoading && loadingPlaceholder ? [] : options,
+				options: isLoading && loadingPlaceholder && !isLoadingPage ? [] : options,
 				ref: function ref(_ref) {
-					return _this3.select = _ref;
+					return _this4.select = _ref;
+				},
+				onChange: function onChange(newValues) {
+					if (_this4.props.multi && _this4.props.value && newValues.length > _this4.props.value.length) {
+						_this4.clearOptions();
+					}
+					_this4.props.onChange(newValues);
 				}
 			};
 
 			return children(_extends({}, this.props, props, {
 				isLoading: isLoading,
-				onInputChange: this.onInputChange
+				onInputChange: this._onInputChange,
+				onMenuScrollToBottom: this._onMenuScrollToBottom
 			}));
 		}
 	}]);
@@ -2266,6 +2301,10 @@ var Async = function (_Component) {
 
 Async.propTypes = propTypes;
 Async.defaultProps = defaultProps;
+
+function defaultChildren(props) {
+	return React__default.createElement(Select$1, props);
+}
 
 var CreatableSelect = function (_React$Component) {
 	inherits(CreatableSelect, _React$Component);
